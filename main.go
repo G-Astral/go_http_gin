@@ -1,15 +1,78 @@
 package main
 
-import "github.com/gin-gonic/gin"
+import (
+	"database/sql"
+	"fmt"
+	// "net/http"
+	"log"
+
+	"github.com/gin-gonic/gin"
+	_ "github.com/lib/pq"
+)
+
+type User struct {
+	Id 		int		`json:"id"`
+	Name 	string	`json:"name"`
+	Age 	int		`json:"age"`
+}
 
 func main() {
+	var user User
+	var query string
+
+	connStr := "postgres://localhost/go_http_gin_db?sslmode=disable"
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	r := gin.Default()
 
-	r.GET("/hello", func (c *gin.Context) {
+	r.POST("/user", func (c *gin.Context) {
+		c.BindJSON(&user)
+		query = "INSERT INTO users (name, age) VALUES ($1, $2) RETURNING id"
+		err = db.QueryRow(query, user.Name, user.Age).Scan(&user.Id)
+		if err != nil {
+			c.JSON(400, gin.H{"error": "Bad request"})
+			return
+		}
+
 		c.JSON(200, gin.H{
-			"message": "Hello, gin!",
+			"message": fmt.Sprintf("Имя: %s. Возраст: %d. ID: %d", user.Name, user.Age, user.Id),
 		})
 	})
 
 	r.Run()
 }
+	// r.GET("/hello", func (c *gin.Context) {
+	// 	c.JSON(200, gin.H{
+	// 		"message": "Hello, gin!",
+	// 	})
+	// })
+
+	// r.GET("/ping", func (c *gin.Context)  {
+	// 	c.JSON(200, gin.H{
+	// 		"reply": "pong",
+	// 	})
+	// })
+	
+	// r.POST("/echo", func (c *gin.Context)  {
+	// 	c.BindJSON(&msg)
+	// 	c.JSON(200, gin.H{
+	// 		"message": fmt.Sprintf("Привет, %s! Тебе %d лет?", msg.Text, msg.Age),
+	// 	})
+	// })
+
+	// r.GET("/greet", func (c *gin.Context)  {
+	// 	name := c.Query("name")
+	// 	ageStr := c.Query("age")
+	// 	age, err := strconv.Atoi(ageStr)
+	// 	if err != nil {
+	// 		c.JSON(400, gin.H{"error": "Bad request"})
+	// 		return
+	// 	}
+	// 	c.JSON(200, gin.H{
+	// 		"message": fmt.Sprintf("Привет, %s! Тебе %d лет?", name, age),
+	// 	})
+	// })
+
