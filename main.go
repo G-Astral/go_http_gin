@@ -108,7 +108,7 @@ func main() {
 
 		err = db.QueryRow(query, id).Scan(&user.Id, &user.Name, &user.Age)
 		if err == sql.ErrNoRows {
-			c.JSON(400, gin.H{"error": "Bad request"})
+			c.JSON(404, gin.H{"error": "Bad request"})
 			return
 		} else if err != nil {
 			c.JSON(500, gin.H{"error": "Internal server error"})
@@ -116,6 +116,43 @@ func main() {
 		}
 
 		c.JSON(200, user)
+	})
+
+	r.PUT("/user/:id", func(c *gin.Context) {
+		var user User
+		query = "UPDATE users SET name = $1, age = $2 WHERE id = $3"
+		idStr := c.Param("id")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			c.JSON(400, gin.H{"error": "Bad request"})
+			return
+		}
+
+		if err := c.BindJSON(&user); err != nil {
+			c.JSON(400, gin.H{"error": "Bad request"})
+			return
+		}
+
+		res, err := db.Exec(query, user.Name, user.Age, id)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Internal server error"})
+			return
+		}
+
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Internal server error"})
+			return
+		}
+
+		if rowsAffected > 0 {
+			user.Id = id
+			c.JSON(200, user)
+			return
+		} else {
+			c.JSON(404, gin.H{"error": "Пользователь не найден"})
+			return
+		}
 	})
 
 	r.Run()
