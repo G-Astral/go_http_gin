@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
+
 	// "net/http"
 	"log"
 
@@ -11,9 +13,9 @@ import (
 )
 
 type User struct {
-	Id 		int		`json:"id"`
-	Name 	string	`json:"name"`
-	Age 	int		`json:"age"`
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+	Age  int    `json:"age"`
 }
 
 func main() {
@@ -28,7 +30,7 @@ func main() {
 
 	r := gin.Default()
 
-	r.POST("/user", func (c *gin.Context) {
+	r.POST("/user", func(c *gin.Context) {
 		c.BindJSON(&user)
 		query = "INSERT INTO users (name, age) VALUES ($1, $2) RETURNING id"
 		err = db.QueryRow(query, user.Name, user.Age).Scan(&user.Id)
@@ -42,7 +44,7 @@ func main() {
 		})
 	})
 
-	r.GET("/users", func (c *gin.Context) {
+	r.GET("/users", func(c *gin.Context) {
 		query = "SELECT * FROM users ORDER BY id"
 		rows, err := db.Query(query)
 		if err != nil {
@@ -66,37 +68,33 @@ func main() {
 		c.IndentedJSON(200, users)
 	})
 
+	r.DELETE("/user/:id", func(c *gin.Context) {
+		query = "DELETE FROM users WHERE id = $1"
+		idStr := c.Param("id")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			c.JSON(400, gin.H{"error": "Bad request"})
+			return
+		}
+
+		res, err := db.Exec(query, id)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Internal server error"})
+			return
+		}
+
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Internal server error"})
+			return
+		}
+
+		if rowsAffected > 0 {
+			c.JSON(200, gin.H{"message": fmt.Sprintf("Пользователь %d удален из базы данных", id)})
+		} else {
+			c.JSON(404, gin.H{"error": "Пользователь не найден"})
+		}
+	})
+
 	r.Run()
 }
-	// r.GET("/hello", func (c *gin.Context) {
-	// 	c.JSON(200, gin.H{
-	// 		"message": "Hello, gin!",
-	// 	})
-	// })
-
-	// r.GET("/ping", func (c *gin.Context)  {
-	// 	c.JSON(200, gin.H{
-	// 		"reply": "pong",
-	// 	})
-	// })
-	
-	// r.POST("/echo", func (c *gin.Context)  {
-	// 	c.BindJSON(&msg)
-	// 	c.JSON(200, gin.H{
-	// 		"message": fmt.Sprintf("Привет, %s! Тебе %d лет?", msg.Text, msg.Age),
-	// 	})
-	// })
-
-	// r.GET("/greet", func (c *gin.Context)  {
-	// 	name := c.Query("name")
-	// 	ageStr := c.Query("age")
-	// 	age, err := strconv.Atoi(ageStr)
-	// 	if err != nil {
-	// 		c.JSON(400, gin.H{"error": "Bad request"})
-	// 		return
-	// 	}
-	// 	c.JSON(200, gin.H{
-	// 		"message": fmt.Sprintf("Привет, %s! Тебе %d лет?", name, age),
-	// 	})
-	// })
-
