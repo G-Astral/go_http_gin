@@ -42,6 +42,30 @@ func main() {
 		})
 	})
 
+	r.GET("/users", func (c *gin.Context) {
+		query = "SELECT * FROM users ORDER BY id"
+		rows, err := db.Query(query)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Ошибка чтения из БД"})
+			return
+		}
+		defer rows.Close()
+
+		var users []User
+
+		for rows.Next() {
+			var u User
+			if err := rows.Scan(&u.Id, &u.Name, &u.Age); err != nil {
+				c.JSON(500, gin.H{"error": "Ошибка при сканировании строки"})
+				return
+			}
+
+			users = append(users, u)
+		}
+
+		c.IndentedJSON(200, users)
+	})
+
 	r.Run()
 }
 	// r.GET("/hello", func (c *gin.Context) {
