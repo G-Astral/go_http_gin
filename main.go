@@ -96,5 +96,27 @@ func main() {
 		}
 	})
 
+	r.GET("/user/:id", func(c *gin.Context) {
+		var user User
+		query = "SELECT * FROM users WHERE id = $1"
+		idStr := c.Param("id")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			c.JSON(400, gin.H{"error": "Bad request"})
+			return
+		}
+
+		err = db.QueryRow(query, id).Scan(&user.Id, &user.Name, &user.Age)
+		if err == sql.ErrNoRows {
+			c.JSON(400, gin.H{"error": "Bad request"})
+			return
+		} else if err != nil {
+			c.JSON(500, gin.H{"error": "Internal server error"})
+			return
+		}
+
+		c.JSON(200, user)
+	})
+
 	r.Run()
 }
