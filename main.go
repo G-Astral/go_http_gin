@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -10,13 +11,31 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 )
+
+type ctxKey string
 
 type User struct {
 	Id   int    `json:"id"`
 	Name string `json:"name"`
 	Age  int    `json:"age"`
+}
+
+const requestIDKey ctxKey = "requestID"
+
+func requestIDMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		reqID := uuid.New().String()
+
+		ctx := context.WithValue(c.Request.Context(), requestIDKey, reqID)
+		c.Request = c.Request.WithContext(ctx)
+
+		c.Writer.Header().Set("X-Request-ID", reqID)
+
+		c.Next()
+	}
 }
 
 func main() {
@@ -40,6 +59,8 @@ func main() {
 	}
 
 	r := gin.Default()
+
+	r.Use(requestIDMiddleware())
 
 	r.POST("/user", func(c *gin.Context) {
 		err = c.BindJSON(&user)
@@ -104,7 +125,7 @@ func main() {
 			logAction("ERROR", "Ошибка при удалении строки из БД")
 			return
 		}
-		
+
 		rowsAffected, err := res.RowsAffected()
 		if err != nil {
 			c.JSON(500, gin.H{"error": "Internal server error"})
